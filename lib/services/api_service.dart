@@ -41,7 +41,7 @@ class ApiService {
       );
     });
 
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
       final authService = AuthService();
       final newToken = await authService.refreshAccessToken();
       if (newToken != null) {
@@ -72,7 +72,7 @@ class ApiService {
       );
     });
 
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
       final authService = AuthService();
       final newToken = await authService.refreshAccessToken();
 
@@ -106,7 +106,7 @@ class ApiService {
       );
     });
 
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
       final authService = AuthService();
       final newToken = await authService.refreshAccessToken();
 
@@ -140,7 +140,7 @@ class ApiService {
       );
     });
 
-    if (response.statusCode == 401) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
       final authService = AuthService();
       final newToken = await authService.refreshAccessToken();
 

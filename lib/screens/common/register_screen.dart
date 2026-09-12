@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User exists already")),
+        SnackBar(content: Text(AuthService.lastError ?? "Registration failed")),
       );
     }
   }

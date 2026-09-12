@@ -4,25 +4,21 @@ class AppConfig {
     defaultValue: 'prod',
   );
 
+  static const String _defaultLocalUrl = 'http://localhost:8080';
+
   static String get baseUrl {
-    final override = const String.fromEnvironment(
+    const override = String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: '',
     );
 
     if (override.isNotEmpty) {
-      return override;
+      return override.endsWith('/')
+          ? override.substring(0, override.length - 1)
+          : override;
     }
 
-    switch (appEnvironment) {
-      case 'dev':
-        return 'https://doc-appoint-backend-meb4.onrender.com';
-      case 'staging':
-        return 'https://doc-appoint-backend-meb4.onrender.com';
-      case 'prod':
-      default:
-        return 'https://doc-appoint-backend-meb4.onrender.com';
-    }
+    return _defaultLocalUrl;
   }
 
   static const Duration requestTimeout = Duration(seconds: 12);
