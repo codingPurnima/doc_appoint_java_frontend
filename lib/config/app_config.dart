@@ -4,13 +4,11 @@ class AppConfig {
     defaultValue: 'prod',
   );
 
-  static const String _defaultLocalUrl = 'http://10.0.2.2:8080';
+  static const String _defaultLocalUrl =
+      'https://docappointjava-production.up.railway.app';
 
   static String get baseUrl {
-    const override = String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: '',
-    );
+    const override = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
     if (override.isNotEmpty) {
       return override.endsWith('/')
