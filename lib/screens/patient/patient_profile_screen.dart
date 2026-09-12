@@ -5,6 +5,7 @@ import 'package:docappoint/services/api_service.dart';
 import 'package:docappoint/services/auth_service.dart';
 import 'package:docappoint/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({super.key});
@@ -26,19 +27,24 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   Future<void> fetchProfileData() async {
     final api = ApiService();
-    final userResponse = await api.getRequest("/users/me");
-    final appointmentResponse = await api.getRequest("/appointments/me");
+    final authService = AuthService();
+
+    await authService.loadTokens();
+
+    http.Response? userResponse;
+    try {
+      userResponse = await api.getRequest("/users/me");
+    } catch (_) {}
+
+    http.Response? appointmentResponse;
+    try {
+      appointmentResponse = await api.getRequest("/appointments/me");
+    } catch (_) {}
 
     if (!mounted) return;
 
-    if (userResponse.statusCode == 200 &&
-        appointmentResponse.statusCode == 200) {
-      setState(() {
-        user = jsonDecode(userResponse.body);
-        appointments = jsonDecode(appointmentResponse.body);
-        isLoading = false;
-      });
-    } else if (userResponse.statusCode == 401) {
+    if ((userResponse != null && userResponse.statusCode == 401) ||
+        (appointmentResponse != null && appointmentResponse.statusCode == 401)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -46,7 +52,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
           ),
         ),
       );
-      await AuthService().logout();
+      await authService.logout();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -54,11 +60,44 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         (route) => false,
       );
       return;
-    } else {
-      setState(() {
-        isLoading = false;
-      });
     }
+
+    Map<String, dynamic>? parsedUser;
+    if (userResponse != null && userResponse.statusCode == 200) {
+      try {
+        final decoded = jsonDecode(userResponse.body);
+        if (decoded is Map<String, dynamic>) {
+          parsedUser = decoded;
+        }
+      } catch (_) {}
+    }
+
+    final fallbackUsername = AuthService.username ?? "Patient";
+    parsedUser = {
+      "name":
+          parsedUser?["name"] ??
+          parsedUser?["username"] ??
+          fallbackUsername,
+      "username": parsedUser?["username"] ?? fallbackUsername,
+      "phone": parsedUser?["phone"] ?? "",
+      "role": parsedUser?["role"] ?? AuthService.role ?? "patient",
+    };
+
+    List<dynamic> parsedAppointments = [];
+    if (appointmentResponse != null && appointmentResponse.statusCode == 200) {
+      try {
+        final decoded = jsonDecode(appointmentResponse.body);
+        if (decoded is List) {
+          parsedAppointments = decoded;
+        }
+      } catch (_) {}
+    }
+
+    setState(() {
+      user = parsedUser;
+      appointments = parsedAppointments;
+      isLoading = false;
+    });
   }
 
   Future<void> cancelAppointment(int appointmentId) async {
@@ -85,17 +124,22 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             ),
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final response = await ApiService().putRequest(
-                "/appointments/$appointmentId/cancel",
-                {},
-              );
+              final success = await ApiService().cancelAppointment(appointmentId);
 
               if (!mounted) return;
 
-              if (response.statusCode == 200) {
+              if (success) {
                 fetchProfileData();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Appointment cancelled")),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ApiService.lastError ?? "Failed to cancel appointment",
+                    ),
+                  ),
                 );
               }
             },

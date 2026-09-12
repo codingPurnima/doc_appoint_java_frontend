@@ -3,15 +3,21 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class GenerateSlotsDialog extends StatefulWidget {
+  final String? initialDate;
   final VoidCallback onSlotsGenerated;
 
-  const GenerateSlotsDialog({super.key, required this.onSlotsGenerated});
+  const GenerateSlotsDialog({
+    super.key,
+    this.initialDate,
+    required this.onSlotsGenerated,
+  });
 
   @override
   State<GenerateSlotsDialog> createState() => _GenerateSlotsDialogState();
 }
 
 class _GenerateSlotsDialogState extends State<GenerateSlotsDialog> {
+  late String _selectedDate;
   final startController = TextEditingController(text: "09:00");
   final endController = TextEditingController(text: "17:00");
   final durationController = TextEditingController(text: "30");
@@ -19,6 +25,13 @@ class _GenerateSlotsDialogState extends State<GenerateSlotsDialog> {
   final breakEndController = TextEditingController();
 
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate =
+        widget.initialDate ?? DateTime.now().toIso8601String().split("T")[0];
+  }
 
   @override
   void dispose() {
@@ -30,16 +43,36 @@ class _GenerateSlotsDialogState extends State<GenerateSlotsDialog> {
     super.dispose();
   }
 
+  String _formatTime(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final parts = trimmed.split(':');
+    if (parts.length == 2) {
+      final h = parts[0].padLeft(2, '0');
+      final m = parts[1].padLeft(2, '0');
+      return '$h:$m:00';
+    } else if (parts.length == 3) {
+      final h = parts[0].padLeft(2, '0');
+      final m = parts[1].padLeft(2, '0');
+      final s = parts[2].padLeft(2, '0');
+      return '$h:$m:$s';
+    }
+    return trimmed;
+  }
+
   Future<void> _submit() async {
     final duration = int.tryParse(durationController.text.trim());
     if (duration == null || duration <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a valid slot duration in minutes")),
+        const SnackBar(
+          content: Text("Please enter a valid slot duration in minutes"),
+        ),
       );
       return;
     }
 
-    if (startController.text.trim().isEmpty || endController.text.trim().isEmpty) {
+    if (startController.text.trim().isEmpty ||
+        endController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Start and End times are required")),
       );
@@ -48,39 +81,40 @@ class _GenerateSlotsDialogState extends State<GenerateSlotsDialog> {
 
     setState(() => _isSubmitting = true);
 
-    final today = DateTime.now().toIso8601String().split("T")[0];
     final breaks = breakStartController.text.trim().isNotEmpty &&
             breakEndController.text.trim().isNotEmpty
         ? [
             {
-              "start": breakStartController.text.trim(),
-              "end": breakEndController.text.trim(),
+              "start": _formatTime(breakStartController.text),
+              "end": _formatTime(breakEndController.text),
             },
           ]
         : <Map<String, String>>[];
 
-    final response = await ApiService().postRequest("/slots/generate", {
-      "date": today,
-      "day_start": startController.text.trim(),
-      "day_end": endController.text.trim(),
-      "slot_duration_minutes": duration,
-      "breaks": breaks,
-    });
+    final success = await ApiService().generateSlots(
+      date: _selectedDate,
+      dayStart: _formatTime(startController.text),
+      dayEnd: _formatTime(endController.text),
+      slotDurationMinutes: duration,
+      breaks: breaks,
+    );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    if (response.statusCode == 200) {
+    if (success) {
       widget.onSlotsGenerated();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Slots generated successfully")),
       );
     } else {
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Error generating slots. Check your slot fields."),
+        SnackBar(
+          content: Text(
+            ApiService.lastError ?? "Error generating slots. Check your slot fields.",
+          ),
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -109,6 +143,66 @@ class _GenerateSlotsDialogState extends State<GenerateSlotsDialog> {
               const Text(
                 "Configure your daily consultation slots",
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final initial =
+                      DateTime.tryParse(_selectedDate) ?? DateTime.now();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initial,
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 90)),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedDate =
+                          "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Date: $_selectedDate",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        "Change",
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Row(

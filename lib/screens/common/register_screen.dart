@@ -17,8 +17,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _secretController = TextEditingController();
 
+  String _selectedRole = "patient";
   bool _obscurePassword = true;
+  bool _obscureSecret = true;
   bool _isLoading = false;
 
   @override
@@ -26,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
+    _secretController.dispose();
     super.dispose();
   }
 
@@ -35,19 +39,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     final authService = AuthService();
-    final success = await authService.register(
-      _nameController.text.trim(),
-      _mobileController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final bool success;
+    if (_selectedRole == "doctor") {
+      success = await authService.registerDoctor(
+        _nameController.text.trim(),
+        _mobileController.text.trim(),
+        _passwordController.text.trim(),
+        _secretController.text.trim(),
+      );
+    } else {
+      success = await authService.register(
+        _nameController.text.trim(),
+        _mobileController.text.trim(),
+        _passwordController.text.trim(),
+      );
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Registration Successful. Please Login"),
+        SnackBar(
+          content: Text(
+            _selectedRole == "doctor"
+                ? "Doctor Registration Successful. Please Login"
+                : "Registration Successful. Please Login",
+          ),
         ),
       );
 
@@ -57,7 +75,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AuthService.lastError ?? "Registration failed")),
+        SnackBar(
+          content: Text(AuthService.lastError ?? "Registration failed"),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -124,7 +145,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: "patient",
+                    label: Text("Patient"),
+                    icon: Icon(Icons.person_outline),
+                  ),
+                  ButtonSegment<String>(
+                    value: "doctor",
+                    label: Text("Doctor"),
+                    icon: Icon(Icons.medical_services_outlined),
+                  ),
+                ],
+                selected: {_selectedRole},
+                onSelectionChanged: (newSelection) {
+                  setState(() {
+                    _selectedRole = newSelection.first;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
               Form(
                 key: _formKey,
                 child: Column(
@@ -201,6 +243,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+                    if (_selectedRole == "doctor") ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _secretController,
+                        obscureText: _obscureSecret,
+                        decoration: InputDecoration(
+                          labelText: "Doctor Secret Key",
+                          hintText: "Enter doctor registration secret",
+                          prefixIcon: const Icon(Icons.vpn_key_outlined, size: 22),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureSecret
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              size: 20,
+                              color: AppColors.textMuted,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureSecret = !_obscureSecret;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: (value) {
+                          if (_selectedRole == "doctor" &&
+                              (value == null || value.trim().isEmpty)) {
+                            return "Doctor secret key is required";
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 28),
                     ElevatedButton(
                       onPressed: _isLoading ? null : _submitForm,

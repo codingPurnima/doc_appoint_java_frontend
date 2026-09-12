@@ -1,4 +1,5 @@
 import 'package:docappoint/providers/doctor_home_provider.dart';
+import 'package:docappoint/services/api_service.dart';
 import 'package:docappoint/theme/app_theme.dart';
 import 'package:docappoint/widgets/empty_state_view.dart';
 import 'package:docappoint/widgets/slot_generation_dialog.dart';
@@ -57,6 +58,32 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Welcome!"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: "Select Date",
+            onPressed: () async {
+              final initial =
+                  DateTime.tryParse(state.selectedDate) ?? DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: initial,
+                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                lastDate: DateTime.now().add(const Duration(days: 90)),
+              );
+              if (picked != null) {
+                final formatted =
+                    "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                await notifier.fetchSlots(formatted);
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: "Refresh",
+            onPressed: () => notifier.fetchSlots(state.selectedDate),
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,10 +101,10 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "Your Schedule",
                       style: TextStyle(
                         fontSize: 20,
@@ -86,10 +113,10 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      "Manage today's consultation slots",
-                      style: TextStyle(
+                      "Consultation slots for ${state.selectedDate}",
+                      style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                       ),
@@ -174,16 +201,22 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                                 );
                               } else if (slot.status == "available" ||
                                   slot.status == "frozen") {
-                                try {
-                                  await notifier.toggleFreezeSlot(slot.id);
-                                  if (!context.mounted) return;
+                                final success =
+                                    await notifier.toggleFreezeSlot(slot.id);
+                                if (!context.mounted) return;
+                                if (success) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text("Slot updated")),
                                   );
-                                } catch (e) {
-                                  if (!context.mounted) return;
+                                } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text("Error updating slot")),
+                                    SnackBar(
+                                      content: Text(
+                                        ApiService.lastError ??
+                                            "Error updating slot",
+                                      ),
+                                      backgroundColor: AppColors.error,
+                                    ),
                                   );
                                 }
                               }
@@ -289,8 +322,9 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
           showDialog(
             context: context,
             builder: (context) => GenerateSlotsDialog(
+              initialDate: state.selectedDate,
               onSlotsGenerated: () async {
-                await notifier.fetchSlots();
+                await notifier.fetchSlots(state.selectedDate);
               },
             ),
           );

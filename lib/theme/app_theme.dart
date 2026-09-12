@@ -25,6 +25,7 @@ class AppColors {
   static const Color bookedText = Color(0xFF991B1B);
   static const Color bookedBorder = Color(0xFFFECACA);
   static const Color bookedDot = Color(0xFFEF4444);
+  static const Color error = Color(0xFFEF4444);
 
   // Semantic Status: Frozen (Slate/Neutral)
   static const Color frozenBg = Color(0xFFF1F5F9);

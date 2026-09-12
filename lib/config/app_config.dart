@@ -4,7 +4,7 @@ class AppConfig {
     defaultValue: 'prod',
   );
 
-  static const String _defaultLocalUrl = 'http://localhost:8080';
+  static const String _defaultLocalUrl = 'http://10.0.2.2:8080';
 
   static String get baseUrl {
     const override = String.fromEnvironment(

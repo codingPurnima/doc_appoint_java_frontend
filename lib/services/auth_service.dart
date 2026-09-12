@@ -10,6 +10,7 @@ class AuthService {
   static String? _accessToken;
   static String? _refreshToken;
   static String? _role;
+  static String? _username;
   static String? _lastError;
   static Future<String?>? _ongoingRefresh;
 
@@ -19,6 +20,7 @@ class AuthService {
   static String? get accessToken => _accessToken;
   static String? get refreshToken => _refreshToken;
   static String? get role => _role;
+  static String? get username => _username;
   static String? get lastError => _lastError;
 
   static void clearLastError() {
@@ -29,16 +31,19 @@ class AuthService {
     _accessToken = await _secureStorage.read(key: 'access_token');
     _refreshToken = await _secureStorage.read(key: 'refresh_token');
     _role = await _secureStorage.read(key: 'role');
+    _username = await _secureStorage.read(key: 'username');
   }
 
   Future<void> clearSessionData() async {
     await _secureStorage.delete(key: 'access_token');
     await _secureStorage.delete(key: 'refresh_token');
     await _secureStorage.delete(key: 'role');
+    await _secureStorage.delete(key: 'username');
 
     _accessToken = null;
     _refreshToken = null;
     _role = null;
+    _username = null;
   }
 
   Future<bool> hasValidSession() async {
@@ -159,10 +164,12 @@ class AuthService {
       await _secureStorage.write(key: 'access_token', value: accessToken);
       await _secureStorage.write(key: 'refresh_token', value: refreshToken);
       await _secureStorage.write(key: 'role', value: role);
+      await _secureStorage.write(key: 'username', value: username);
 
       _accessToken = accessToken;
       _refreshToken = refreshToken;
       _role = role;
+      _username = username;
 
       return {"access_token": accessToken, "role": role};
     } on TimeoutException {

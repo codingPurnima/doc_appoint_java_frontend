@@ -192,9 +192,26 @@ class ProfileScreen extends StatelessWidget {
                       final appointment = appointments[index];
                       final status = appointment["status"]?.toString() ?? "";
                       final date = appointment["date"]?.toString() ?? "";
-                      final startTime = appointment["start_time"]?.toString() ?? "";
-                      final endTime = appointment["end_time"]?.toString() ?? "";
-                      final patientName = appointment["patient_name"]?.toString() ?? "Patient";
+                      final startTime =
+                          (appointment["start_time"] ??
+                                  appointment["startTime"])
+                              ?.toString() ??
+                          "";
+                      final endTime =
+                          (appointment["end_time"] ?? appointment["endTime"])
+                              ?.toString() ??
+                          "";
+                      final patientName =
+                          (appointment["patient_name"] ??
+                                  appointment["patientName"])
+                              ?.toString() ??
+                          "Patient";
+                      final rawId =
+                          appointment["appointment_id"] ??
+                          appointment["appointmentId"] ??
+                          appointment["id"];
+                      final appointmentId =
+                          rawId is int ? rawId : int.tryParse('$rawId');
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -275,14 +292,14 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            if (status == "booked" && onCancelOrCompleteAppointment != null) ...[
+                            if (status == "booked" && onCancelOrCompleteAppointment != null && appointmentId != null) ...[
                               const SizedBox(height: 12),
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: isDoctor
                                     ? ElevatedButton.icon(
                                         onPressed: () => onCancelOrCompleteAppointment?.call(
-                                          appointment["appointment_id"],
+                                          appointmentId,
                                         ),
                                         icon: const Icon(Icons.check, size: 16),
                                         label: const Text("Complete"),
@@ -302,7 +319,7 @@ class ProfileScreen extends StatelessWidget {
                                       )
                                     : OutlinedButton.icon(
                                         onPressed: () => onCancelOrCompleteAppointment?.call(
-                                          appointment["appointment_id"],
+                                          appointmentId,
                                         ),
                                         icon: const Icon(Icons.close, size: 16),
                                         label: const Text("Cancel"),

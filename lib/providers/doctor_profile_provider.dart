@@ -49,43 +49,48 @@ class DoctorProfileNotifier extends Notifier<DoctorProfileState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final responses = await Future.wait([
-        api.getRequest("/users/me"),
-        api.getRequest("/appointments/doctor"),
-      ], eagerError: false);
+      final userResponse = await api.getRequest("/users/me");
+      final appointments = await api.getDoctorAppointments();
 
-      final userResponse = responses[0];
-      final appointmentResponse = responses[1];
-
-      if (userResponse.statusCode == 200 &&
-          appointmentResponse.statusCode == 200) {
-        state = state.copyWith(
-          user: jsonDecode(userResponse.body),
-          appointments: jsonDecode(appointmentResponse.body),
-          isLoading: false,
-          error: null,
-        );
-        return;
+      Map<String, dynamic>? userData;
+      if (userResponse.statusCode == 200) {
+        try {
+          final decoded = jsonDecode(userResponse.body);
+          if (decoded is Map<String, dynamic>) {
+            userData = decoded;
+          }
+        } catch (_) {}
       }
 
-      if (userResponse.statusCode == 401 ||
-          appointmentResponse.statusCode == 401) {
-        state = state.copyWith(isLoading: false, error: "session_expired");
-        return;
+      if (userData == null) {
+        await AuthService().loadTokens();
+        final username = AuthService.username;
+        if (username != null && username.isNotEmpty) {
+          userData = {
+            "username": username,
+            "name": username,
+            "role": AuthService.role ?? "doctor",
+          };
+        }
       }
 
-      state = state.copyWith(isLoading: false, error: null);
+      state = state.copyWith(
+        user: userData,
+        appointments: appointments,
+        isLoading: false,
+        error: null,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<int> completeAppointment(int id) async {
-    final response = await api.patchRequest("/appointments/$id/complete", {});
-    if (response.statusCode == 200) {
+  Future<bool> completeAppointment(int id) async {
+    final success = await api.completeAppointment(id);
+    if (success) {
       await fetchProfileData();
     }
-    return response.statusCode;
+    return success;
   }
 
   Future<void> logout() async {

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/slot.dart';
 import '../services/api_service.dart';
@@ -7,22 +6,26 @@ class DoctorHomeState {
   final List<Slot> slots;
   final bool isLoading;
   final String? error;
+  final String selectedDate;
 
   const DoctorHomeState({
     required this.slots,
     required this.isLoading,
     required this.error,
+    required this.selectedDate,
   });
 
   DoctorHomeState copyWith({
     List<Slot>? slots,
     bool? isLoading,
     String? error,
+    String? selectedDate,
   }) {
     return DoctorHomeState(
       slots: slots ?? this.slots,
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: error,
+      selectedDate: selectedDate ?? this.selectedDate,
     );
   }
 }
@@ -30,45 +33,49 @@ class DoctorHomeState {
 class DoctorHomeNotifier extends Notifier<DoctorHomeState> {
   final ApiService api = ApiService();
 
-  // the initial state of the notifier
   @override
   DoctorHomeState build() {
-    return const DoctorHomeState(slots: [], isLoading: true, error: null);
+    final today = DateTime.now().toIso8601String().split("T")[0];
+    return DoctorHomeState(
+      slots: [],
+      isLoading: true,
+      error: null,
+      selectedDate: today,
+    );
   }
 
-  Future<void> fetchSlots() async {
-    try {
-      final today = DateTime.now().toIso8601String().split("T")[0];
-      final response = await api.getRequest("/slots?date=$today");
+  Future<void> fetchSlots([String? date]) async {
+    final queryDate = date ?? state.selectedDate;
+    state = state.copyWith(isLoading: true, selectedDate: queryDate);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List) {
-          state = state.copyWith(
-            slots: data.map((json) => Slot.fromJson(json)).toList(),
-            isLoading: false,
-            error: null,
-          );
-        } else {
-          state = state.copyWith(
-            isLoading: false,
-            error: "Unexpected response",
-          );
-        }
+    try {
+      final list = await api.getDoctorSlots(queryDate);
+      if (list != null) {
+        state = state.copyWith(
+          slots: list.map((json) => Slot.fromJson(json)).toList(),
+          isLoading: false,
+          error: null,
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: "Failed to fetch slots",
+          error: ApiService.lastError ?? "Failed to fetch slots",
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiService.lastError ?? e.toString(),
+      );
     }
   }
 
-  Future<void> toggleFreezeSlot(int id) async {
-    await api.toggleFreezeSlot(id);
-    await fetchSlots();
+  Future<bool> toggleFreezeSlot(int id) async {
+    final success = await api.toggleFreezeSlot(id);
+    if (success) {
+      await fetchSlots(state.selectedDate);
+    }
+    return success;
   }
 }
 

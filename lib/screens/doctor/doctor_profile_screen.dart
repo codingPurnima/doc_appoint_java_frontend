@@ -1,5 +1,6 @@
 import 'package:docappoint/providers/doctor_profile_provider.dart';
 import 'package:docappoint/screens/common/profile_screen.dart';
+import 'package:docappoint/services/api_service.dart';
 import 'package:docappoint/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,15 +92,25 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
             onPressed: () async {
               Navigator.pop(dialogContext);
 
-              final status = await ref
+              final success = await ref
                   .read(doctorProfileProvider.notifier)
                   .completeAppointment(appointmentId);
 
               if (!context.mounted) return;
 
-              if (status == 200) {
+              if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Appointment completed")),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ApiService.lastError ??
+                          "Failed to complete appointment.",
+                    ),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
               }
             },

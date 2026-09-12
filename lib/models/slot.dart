@@ -53,11 +53,33 @@ class Slot {
     final second = parts.length > 2 ? (int.tryParse(parts[2]) ?? 0) : 0;
 
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day, hour, minute, second);
+    int year = now.year;
+    int month = now.month;
+    int day = now.day;
+    if (date.isNotEmpty) {
+      final parsedDate = DateTime.tryParse(date);
+      if (parsedDate != null) {
+        year = parsedDate.year;
+        month = parsedDate.month;
+        day = parsedDate.day;
+      }
+    }
+    return DateTime(year, month, day, hour, minute, second);
   }
 
   bool get isExpired {
     final now = DateTime.now();
+    if (date.isNotEmpty) {
+      final parsedDate = DateTime.tryParse(date);
+      if (parsedDate != null) {
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final slotDay = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+        if (slotDay.isBefore(todayStart)) {
+          return true;
+        }
+      }
+    }
+
     final start = _parseDateTime(startTime);
     final end = _parseDateTime(endTime);
 

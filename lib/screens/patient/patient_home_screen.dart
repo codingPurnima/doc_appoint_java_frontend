@@ -13,20 +13,39 @@ class PatientHomeScreen extends StatefulWidget {
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
+  DateTime selectedDate = DateTime.now();
+  List<Slot> slots = [];
+  bool isLoading = true;
+
   @override
   void initState() {
     super.initState();
     fetchSlots();
   }
 
-  List<Slot> slots = [];
-  bool isLoading = true;
+  String _formatDate(DateTime dt) {
+    return dt.toIso8601String().split("T")[0];
+  }
 
-  Future<void> fetchSlots() async {
-    final apiService = ApiService();
-    final today = DateTime.now().toIso8601String().split("T")[0];
+  bool _isToday(DateTime dt) {
+    final now = DateTime.now();
+    return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  }
 
-    final result = await apiService.getAvailableSlots(today);
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  Future<void> fetchSlots([DateTime? date]) async {
+    if (date != null) {
+      selectedDate = date;
+    }
+    setState(() {
+      isLoading = true;
+    });
+
+    final dateStr = _formatDate(selectedDate);
+    final result = await ApiService().getAvailableSlots(dateStr);
 
     if (!mounted) return;
 
@@ -37,8 +56,27 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       });
     } else {
       setState(() {
+        slots = [];
         isLoading = false;
       });
+      if (ApiService.lastError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ApiService.lastError!)),
+        );
+      }
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+    );
+
+    if (picked != null && !_isSameDay(picked, selectedDate)) {
+      fetchSlots(picked);
     }
   }
 
@@ -108,9 +146,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 );
                 fetchSlots();
               } else {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("Booking Failed")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ApiService.lastError ?? "Booking Failed",
+                    ),
+                  ),
+                );
               }
             },
             child: const Text("Confirm"),
@@ -128,7 +170,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text("Welcome!")),
+      appBar: AppBar(
+        title: const Text("Welcome!"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: "Select Date",
+            onPressed: _selectDate,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: "Refresh Slots",
+            onPressed: () => fetchSlots(),
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -144,27 +200,50 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Available Slots",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Available Slots",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Today's Open Consultations",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: _selectDate,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isToday(selectedDate)
+                                    ? "Today's Consultations (${_formatDate(selectedDate)})"
+                                    : "Consultations for ${_formatDate(selectedDate)}",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.calendar_today_outlined,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -207,11 +286,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     ),
                   )
                 : availableSlots.isEmpty
-                ? const EmptyStateView(
+                ? EmptyStateView(
                     icon: Icons.event_busy_outlined,
-                    title: "No slots available today",
+                    title: _isToday(selectedDate)
+                        ? "No slots available today"
+                        : "No slots available for ${_formatDate(selectedDate)}",
                     subtitle:
-                        "Please check back later for newly released openings.",
+                        "Please check back later or select another date for openings.",
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
