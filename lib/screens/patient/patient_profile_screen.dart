@@ -44,7 +44,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     if (!mounted) return;
 
     if ((userResponse != null && userResponse.statusCode == 401) ||
-        (appointmentResponse != null && appointmentResponse.statusCode == 401)) {
+        (appointmentResponse != null &&
+            appointmentResponse.statusCode == 401)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -75,9 +76,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     final fallbackUsername = AuthService.username ?? "Patient";
     parsedUser = {
       "name":
-          parsedUser?["name"] ??
-          parsedUser?["username"] ??
-          fallbackUsername,
+          parsedUser?["name"] ?? parsedUser?["username"] ?? fallbackUsername,
       "username": parsedUser?["username"] ?? fallbackUsername,
       "phone": parsedUser?["phone"] ?? "",
       "role": parsedUser?["role"] ?? AuthService.role ?? "patient",
@@ -111,7 +110,9 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             Text("Cancel Appointment"),
           ],
         ),
-        content: const Text("Are you sure you want to cancel this appointment?"),
+        content: const Text(
+          "Are you sure you want to cancel this appointment?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -124,7 +125,9 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             ),
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final success = await ApiService().cancelAppointment(appointmentId);
+              final success = await ApiService().cancelAppointment(
+                appointmentId,
+              );
 
               if (!mounted) return;
 
@@ -161,7 +164,9 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             Text("Logout"),
           ],
         ),
-        content: const Text("Are you sure you want to log out of your account?"),
+        content: const Text(
+          "Are you sure you want to log out of your account?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

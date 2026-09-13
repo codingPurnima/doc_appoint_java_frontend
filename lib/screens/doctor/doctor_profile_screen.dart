@@ -106,8 +106,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      ApiService.lastError ??
-                          "Failed to complete appointment.",
+                      ApiService.lastError ?? "Failed to complete appointment.",
                     ),
                     backgroundColor: AppColors.error,
                   ),

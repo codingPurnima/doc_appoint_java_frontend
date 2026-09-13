@@ -27,10 +27,7 @@ class _MainScreenState extends State<MainScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(
-              color: AppColors.cardBorder,
-              width: 1,
-            ),
+            top: BorderSide(color: AppColors.cardBorder, width: 1),
           ),
           boxShadow: [
             BoxShadow(
